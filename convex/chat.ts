@@ -42,7 +42,7 @@ export const sendMessage = action({
         },
         contents,
         generationConfig: {
-          maxOutputTokens: 1000,
+          maxOutputTokens: 16384,
           temperature: 0.7,
         },
       }),
