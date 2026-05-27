@@ -3,7 +3,8 @@ import { action } from "./_generated/server";
 
 declare const process: { env: Record<string, string | undefined> };
 
-const ANTHROPIC_API_URL = "https://api.anthropic.com/v1/messages";
+const GEMINI_API_URL =
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
 
 export const sendMessage = action({
   args: {
@@ -17,37 +18,49 @@ export const sendMessage = action({
   },
   returns: v.string(),
   handler: async (_ctx, { messages, system }) => {
-    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const apiKey = process.env.GOOGLE_API_KEY;
     if (!apiKey) {
       throw new Error(
-        "ANTHROPIC_API_KEY not configured. Set it with: bunx convex env set ANTHROPIC_API_KEY your-key",
+        "GOOGLE_API_KEY not configured. Set it with: bunx convex env set GOOGLE_API_KEY your-key",
       );
     }
 
-    const response = await fetch(ANTHROPIC_API_URL, {
+    // Convert messages to Gemini format
+    const contents = messages.map((m) => ({
+      role: m.role === "assistant" ? "model" : "user",
+      parts: [{ text: m.content }],
+    }));
+
+    const response = await fetch(`${GEMINI_API_URL}?key=${apiKey}`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        "x-api-key": apiKey,
-        "anthropic-version": "2023-06-01",
       },
       body: JSON.stringify({
-        model: "claude-sonnet-4-20250514",
-        max_tokens: 1000,
-        system,
-        messages,
+        systemInstruction: {
+          parts: [{ text: system }],
+        },
+        contents,
+        generationConfig: {
+          maxOutputTokens: 1000,
+          temperature: 0.7,
+        },
       }),
     });
 
     if (!response.ok) {
       const error = await response.text();
-      throw new Error(`Anthropic API error (${response.status}): ${error}`);
+      throw new Error(`Gemini API error (${response.status}): ${error}`);
     }
 
     const data = await response.json();
-    return (
-      (data as { content?: { text?: string }[] }).content?.[0]?.text ??
-      "Connection error — please retry."
-    );
+    const text =
+      (
+        data as {
+          candidates?: { content?: { parts?: { text?: string }[] } }[];
+        }
+      ).candidates?.[0]?.content?.parts?.[0]?.text ??
+      "Connection error — please retry.";
+    return text;
   },
 });
