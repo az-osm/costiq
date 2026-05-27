@@ -1,4 +1,4 @@
-import { useAction } from "convex/react";
+import { useAction, useMutation } from "convex/react";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../convex/_generated/api";
 
@@ -190,10 +190,17 @@ const CSS = `
 
 // ── Component ──
 
+const EMAIL_KEY = "costiq_user_email";
+
 export default function CostIQPage() {
   const sendMessage = useAction(api.chat.sendMessage);
+  const registerVisitor = useMutation(api.visitors.register);
 
-  const [phase, setPhase] = useState<"intake" | "chat">("intake");
+  const [phase, setPhase] = useState<"email" | "intake" | "chat">(() =>
+    localStorage.getItem(EMAIL_KEY) ? "intake" : "email"
+  );
+  const [email, setEmail] = useState(() => localStorage.getItem(EMAIL_KEY) || "");
+  const [emailError, setEmailError] = useState("");
   const [ctx, setCtx] = useState<Context>({ purpose:"", sys:"", progPhase:"Sustainment (O&S)", wbs:"", known:"" });
   const [msgs, setMsgs] = useState<Message[]>([]);
   const [inp, setInp] = useState("");
@@ -203,6 +210,18 @@ export default function CostIQPage() {
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
   const wbsOptions = WBS_BY_PHASE[ctx.progPhase] || WBS_BY_PHASE["Sustainment (O&S)"];
+
+  async function submitEmail() {
+    const trimmed = email.trim().toLowerCase();
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setEmailError("Please enter a valid email address.");
+      return;
+    }
+    setEmailError("");
+    try { await registerVisitor({ email: trimmed }); } catch { /* ok */ }
+    localStorage.setItem(EMAIL_KEY, trimmed);
+    setPhase("intake");
+  }
 
   useEffect(() => { setCtx(c => ({...c, wbs:""})); }, [ctx.progPhase]);
   useEffect(() => { bottomRef.current?.scrollIntoView({behavior:"smooth"}); }, [msgs, loading]);
@@ -281,9 +300,43 @@ export default function CostIQPage() {
           ))}
         </div>
         {phase==="chat"&&<button className="btn-g" onClick={()=>{setPhase("intake");setMsgs([]);setInp("");setCtx({purpose:"",sys:"",progPhase:"Sustainment (O&S)",wbs:"",known:""});setExchanges(0);}}>↩ New</button>}
+        {phase!=="email"&&<span style={{fontSize:10,color:"#1E3A5A",fontFamily:"'Fira Code',monospace"}}>{email}</span>}
       </div>
 
       <div style={{flex:1, display:"flex", flexDirection:"column", overflow:"hidden"}}>
+
+        {/* EMAIL GATE */}
+        {phase==="email"&&(
+          <div style={{flex:1, display:"flex", alignItems:"center", justifyContent:"center", padding:20}}>
+            <div style={{width:"100%", maxWidth:420, textAlign:"center"}}>
+              <div style={{display:"inline-flex", alignItems:"center", gap:6, background:"rgba(14,165,233,0.08)", border:"1px solid rgba(14,165,233,0.18)", borderRadius:20, padding:"3px 10px", marginBottom:16}}>
+                <div style={{width:5,height:5,borderRadius:"50%",background:"#0EA5E9"}} className="pulse"/>
+                <span style={{fontSize:10,color:"#38BDF8",fontFamily:"'Fira Code',monospace",letterSpacing:"0.05em"}}>SENIOR ANALYST ONLINE</span>
+              </div>
+              <h1 style={{fontFamily:"'Barlow Condensed',sans-serif",fontSize:28,fontWeight:700,color:"#E2EAF4",letterSpacing:"0.03em",marginBottom:8}}>Welcome to CostIQ</h1>
+              <p style={{fontSize:13,color:"#4A6880",lineHeight:1.6,marginBottom:24}}>Your AI-powered DoD cost estimator brainstorming partner.<br/>Enter your email to get started.</p>
+              <div style={{background:"#0B1A2E",border:"1px solid #152840",borderRadius:12,padding:24,display:"flex",flexDirection:"column",gap:14}}>
+                <div>
+                  <label style={{fontSize:10,color:"#3A6280",display:"block",marginBottom:6,textTransform:"uppercase" as const,letterSpacing:"0.07em",fontFamily:"'Fira Code',monospace",textAlign:"left"}}>Email address</label>
+                  <input
+                    className="ciq-field"
+                    type="email"
+                    value={email}
+                    onChange={e=>{setEmail(e.target.value);setEmailError("");}}
+                    onKeyDown={e=>{if(e.key==="Enter") submitEmail();}}
+                    placeholder="you@agency.mil"
+                    autoFocus
+                  />
+                  {emailError&&<p style={{fontSize:11,color:"#F87171",marginTop:6,textAlign:"left"}}>{emailError}</p>}
+                </div>
+                <button className="btn-p" style={{width:"100%",padding:"12px"}} onClick={submitEmail}>
+                  Continue →
+                </button>
+              </div>
+              <p style={{fontSize:10,color:"#152840",marginTop:12,fontFamily:"'Fira Code',monospace"}}>PROTOTYPE · UNCLASSIFIED / NON-CUI USE ONLY</p>
+            </div>
+          </div>
+        )}
 
         {/* INTAKE */}
         {phase==="intake"&&(

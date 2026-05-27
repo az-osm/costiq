@@ -17,6 +17,7 @@ import type * as seedTestUser from "../seedTestUser.js";
 import type * as testAuth from "../testAuth.js";
 import type * as users from "../users.js";
 import type * as viktorTools from "../viktorTools.js";
+import type * as visitors from "../visitors.js";
 
 import type {
   ApiFromModules,
@@ -34,6 +35,7 @@ declare const fullApi: ApiFromModules<{
   testAuth: typeof testAuth;
   users: typeof users;
   viktorTools: typeof viktorTools;
+  visitors: typeof visitors;
 }>;
 
 /**
