@@ -4,7 +4,7 @@ import { action } from "./_generated/server";
 declare const process: { env: Record<string, string | undefined> };
 
 const GEMINI_API_URL =
-  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent";
+  "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-pro:generateContent";
 
 export const sendMessage = action({
   args: {
