@@ -1,4 +1,5 @@
 import { useAction, useMutation } from "convex/react";
+import type { Id } from "../../convex/_generated/dataModel";
 import { useEffect, useRef, useState } from "react";
 import { api } from "../../convex/_generated/api";
 
@@ -276,6 +277,9 @@ const EMAIL_KEY = "costiq_user_email";
 export default function CostIQPage() {
   const sendMessage = useAction(api.chat.sendMessage);
   const registerVisitor = useMutation(api.visitors.register);
+  const createSession = useMutation(api.sessions.create);
+  const recordExchange = useMutation(api.sessions.recordExchange);
+  const completeSession = useMutation(api.sessions.complete);
 
   const [phase, setPhase] = useState<"email" | "intake" | "chat">(() =>
     localStorage.getItem(EMAIL_KEY) ? "intake" : "email"
@@ -287,6 +291,7 @@ export default function CostIQPage() {
   const [inp, setInp] = useState("");
   const [loading, setLoading] = useState(false);
   const [exchanges, setExchanges] = useState(0);
+  const [sessionId, setSessionId] = useState<Id<"sessions"> | null>(null);
   const bottomRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -319,6 +324,20 @@ export default function CostIQPage() {
   async function startSession() {
     if (!ctx.purpose || !ctx.sys || !ctx.wbs) return;
     setPhase("chat");
+
+    // Create session record in DB
+    let sid: Id<"sessions"> | null = null;
+    try {
+      sid = await createSession({
+        email: email.trim().toLowerCase(),
+        purpose: ctx.purpose,
+        systemType: ctx.sys,
+        programPhase: ctx.progPhase,
+        wbsElement: ctx.wbs,
+      });
+      setSessionId(sid);
+    } catch { /* tracking is best-effort */ }
+
     const purposeLabel = PURPOSES.find(p => p.v === ctx.purpose)?.label || "";
     const opening = `Estimate purpose: ${purposeLabel}. Working on a ${ctx.wbs} estimate for a ${ctx.sys} (${ctx.progPhase}).${ctx.known ? ` What I have: ${ctx.known}` : " I don't have much data yet."}`;
     const history = [{role:"user", content:opening}];
@@ -327,6 +346,8 @@ export default function CostIQPage() {
     const reply = await callAI(history);
     setMsgs(prev => [...prev, {role:"assistant", content:reply, ts:Date.now()}]);
     setExchanges(1);
+    // Record the first exchange
+    if (sid) { try { await recordExchange({ sessionId: sid }); } catch { /* ok */ } }
     setLoading(false);
     setTimeout(() => inputRef.current?.focus(), 200);
   }
@@ -341,6 +362,8 @@ export default function CostIQPage() {
     const reply = await callAI(newMsgs.map(m => ({role:m.role, content:m.content})));
     setMsgs(prev => [...prev, {role:"assistant", content:reply, ts:Date.now()}]);
     setExchanges(e => e+1);
+    // Record exchange
+    if (sessionId) { try { await recordExchange({ sessionId }); } catch { /* ok */ } }
     setLoading(false);
     setTimeout(() => inputRef.current?.focus(), 100);
   }
@@ -380,7 +403,7 @@ export default function CostIQPage() {
             </div>
           ))}
         </div>
-        {phase==="chat"&&<button className="btn-g" onClick={()=>{setPhase("intake");setMsgs([]);setInp("");setCtx({purpose:"",sys:"",progPhase:"Sustainment (O&S)",wbs:"",known:""});setExchanges(0);}}>↩ New</button>}
+        {phase==="chat"&&<button className="btn-g" onClick={()=>{if(sessionId){completeSession({sessionId}).catch(()=>{});}setSessionId(null);setPhase("intake");setMsgs([]);setInp("");setCtx({purpose:"",sys:"",progPhase:"Sustainment (O&S)",wbs:"",known:""});setExchanges(0);}}>↩ New</button>}
         {phase!=="email"&&<span style={{fontSize:10,color:"#1E3A5A",fontFamily:"'Fira Code',monospace"}}>{email}</span>}
       </div>
 

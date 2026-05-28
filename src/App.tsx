@@ -3,6 +3,7 @@ import ErrorBoundary from "./components/ErrorBoundary";
 import { Toaster } from "./components/ui/sonner";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import CostIQPage from "./pages/CostIQPage";
+import AdminPage from "./pages/AdminPage";
 
 function App() {
   return (
@@ -11,6 +12,7 @@ function App() {
         <Toaster />
         <Routes>
           <Route path="/" element={<CostIQPage />} />
+          <Route path="/admin" element={<AdminPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </ThemeProvider>

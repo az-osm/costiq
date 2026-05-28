@@ -14,6 +14,7 @@ import type * as chat from "../chat.js";
 import type * as constants from "../constants.js";
 import type * as http from "../http.js";
 import type * as seedTestUser from "../seedTestUser.js";
+import type * as sessions from "../sessions.js";
 import type * as testAuth from "../testAuth.js";
 import type * as users from "../users.js";
 import type * as viktorTools from "../viktorTools.js";
@@ -32,6 +33,7 @@ declare const fullApi: ApiFromModules<{
   constants: typeof constants;
   http: typeof http;
   seedTestUser: typeof seedTestUser;
+  sessions: typeof sessions;
   testAuth: typeof testAuth;
   users: typeof users;
   viktorTools: typeof viktorTools;
